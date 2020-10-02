@@ -417,7 +417,5 @@ def solve(string):
         sys.stderr.write(e.error_message)
 
 
-solve("(b or d) and (f if (c equal v))")
-
 # No need to type I have already copied it
 # solve("-(--((-p or --q) and -(q and -p)) equal ((q if p) and (-p or --q))) if ((r and -s) unequal (p and -r))")
