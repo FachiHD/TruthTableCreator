@@ -26,12 +26,12 @@ Incase a string representation of the truth table is required the [get_represent
    1     1   |   1   |
 ```
 
-Combined these two are included in the [solve](solver.py) function which is ment to be used when accessing this script from the console as it catches all custom exceptions and writes them to ```sys.stderr```.
+Combined these two are included in the [solve](solver.py) function which is ment to be used when accessing this script from the console as it catches all custom exceptions and writes them to `sys.stderr`.
 
 # How it works
 
 There are 4 steps involved when parsing a string.
  - Polishing: Removes whitespaces and replaces certain keywords with the correct operators.
  - Syntax: Checks for syntax error like correct bracket placement.
- - Optmization: If possible optimize an example would removing any statements which is either always true or false. (No optimizations have been implemented.)
- - Parsing: Creates a method tree and also generates an empty truth table which is then used when running the method tree to fill itself.
+ - Optmization: If possible optimize an example would removing any statements which are either always true or false. (No optimizations have been implemented.)
+ - Parsing: Creates a method tree and also generates an empty truth table which are then used when running the method tree to fill the truth table.
