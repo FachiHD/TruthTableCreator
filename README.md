@@ -8,7 +8,7 @@ The list is two dimensional where the inner lists represent the columns of any t
 ```py
 [[    [     []
  "a", "b", 
- 0,   1,    0,
+ 0,   0,    0,
  0,   1,    0,
  1,   0,    0,
  1    1     1
