@@ -33,8 +33,5 @@ Combined these two are included in the [solve](solver.py) function which is ment
 There are 4 steps involved when parsing a string.
  - Polishing: Removes whitespaces and replaces certain keywords with the correct operators.
  - Syntax: Checks for syntax error like correct bracket placement.
- - Optmization: If possible optimize an example would removing any statements which are either always true or false. (No optimizations have been implemented.)
- - Parsing: Creates a method tree and also generates an empty truth table which are then used when running the method tree to fill the truth table.
- 
-## Polishing
-When polishing the program currently takes three steps
+ - Optmization: If possible optimize an example would removing any statements which is either always true or false. (No optimizations have been implemented.)
+ - Parsing: Creates a method tree and also generates an empty truth table which is then used when running the method tree to fill itself.
