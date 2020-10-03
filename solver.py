@@ -1,6 +1,8 @@
 import math
 import sys
 
+# TODO: make index optional for exceptions as it confuses the end user
+
 
 class SolverException(Exception):
     def __init__(self, expression, idx, message, name):
@@ -18,6 +20,8 @@ class InvalidCharacterException(SolverException):
         super().__init__(expression, idx, message, "InvalidCharacterException")
 
 
+TRUE_SIGN = "1"
+FALSE_SIGN = "0"
 NEGATION_SIGN = "¬"
 AND_SIGN = "∧"
 OR_SIGN = "∨"
@@ -29,6 +33,8 @@ OPENING_BRACKET = "("
 CLOSING_BRACKET = ")"
 
 SPECIAL_CHARACTERS = [
+    TRUE_SIGN,
+    FALSE_SIGN,
     NEGATION_SIGN,
     AND_SIGN,
     OR_SIGN,
@@ -51,6 +57,8 @@ OPERATORS = [
 ]
 
 REPLACING_DICTIONARY = {
+    "true": TRUE_SIGN,
+    "false": FALSE_SIGN,
     "not ! -": NEGATION_SIGN,
     "and &&": AND_SIGN,
     "xor": XOR_SIGN,
@@ -70,6 +78,16 @@ VALUES = {}
 # TODO: better documenting for the gates (more consistency)
 
 
+def TRUE():
+    """Always returns true"""
+    return True
+
+
+def FALSE():
+    """Always returns false"""
+    return False
+
+
 def NORMAL(var):
     """Returns an actual value read from VALUES this method will always be last when running the method tree"""
     return VALUES[var]
@@ -77,48 +95,49 @@ def NORMAL(var):
 
 def NOT(var):
     """Negates the result"""
-    return not var[0](var[1])
+    # we use the * and 1: as it may be a constant value in which case we have no parameters to pass so there is no list
+    return not var[0](*var[1:])
 
 
 def AND(var):
     """Checks if both results are true"""
-    res1 = var[0][0](var[0][1])
-    res2 = var[1][0](var[1][1])
+    res1 = var[0][0](*var[0][1:])
+    res2 = var[1][0](*var[1][1:])
     return res1 and res2
 
 
 def OR(var):
     """Checks if any result is true"""
-    res1 = var[0][0](var[0][1])
-    res2 = var[1][0](var[1][1])
+    res1 = var[0][0](*var[0][1:])
+    res2 = var[1][0](*var[1][1:])
     return res1 or res2
 
 
 def XOR(var):
     """Checks that only one result is true"""
-    res1 = var[0][0](var[0][1])
-    res2 = var[1][0](var[1][1])
+    res1 = var[0][0](*var[0][1:])
+    res2 = var[1][0](*var[1][1:])
     return (res1 and not res2) or (not res1 and res2)
 
 
 def IF(var):
     """Returns true if result one is false else it returns result two"""
-    res1 = var[0][0](var[0][1])
-    res2 = var[1][0](var[1][1])
+    res1 = var[0][0](*var[0][1:])
+    res2 = var[1][0](*var[1][1:])
     return not res1 or res2
 
 
 def EQUALS(var):
     """Checks if both results are the same"""
-    res1 = var[0][0](var[0][1])
-    res2 = var[1][0](var[1][1])
+    res1 = var[0][0](*var[0][1:])
+    res2 = var[1][0](*var[1][1:])
     return not ((res1 and not res2) or (not res1 and res2))
 
 
 def NOT_EQUALS(var):
     """Checks if both results return the opposite same as XOR"""
-    res1 = var[0][0](var[0][1])
-    res2 = var[1][0](var[1][1])
+    res1 = var[0][0](*var[0][1:])
+    res2 = var[1][0](*var[1][1:])
     return (res1 and not res2) or (not res1 and res2)
 
 
@@ -152,6 +171,9 @@ def check_surrounded(string):
     :return: True if it is surrounded.
     """
     length = len(string)
+    if length <= 1:
+        return False
+
     counter = 0
     for idx in range(length):
         char = string[idx]
@@ -176,6 +198,8 @@ def polish_statement(string):
 
     negated = False
     length = len(string)
+    if length <= 2:
+        return string.startswith(NEGATION_SIGN), string
     while True:
         # brackets or negations containing the entire string will always have to be on 0 index position
         char = string[0]
@@ -208,8 +232,27 @@ def create_method_tree(string):
     :return: Any variables found and the method tree.
     """
 
-    # TODO: fix danger coming from rogues characters
     negated, string = polish_statement(string)
+    length = len(string)
+    if length <= 2:
+        stripped = string.lstrip(NEGATION_SIGN)
+        # check if the string is a constant
+        if string == TRUE_SIGN:
+            args = [TRUE]
+        elif string == FALSE_SIGN:
+            args = [FALSE]
+        else:
+            args = [NORMAL, stripped]
+
+        if negated:
+            stripped = string.lstrip(NEGATION_SIGN)
+            return stripped, [
+                NOT, args
+            ]
+        else:
+            return string, args
+
+    # TODO: fix danger coming from rogues characters
     done_first_statement = False
     first_statement = ""
     second_statement = ""
@@ -217,7 +260,6 @@ def create_method_tree(string):
     # incremented every time we pass a OPENING_BRACKET and decremented every time we pass a CLOSING_BRACKET
     # when this is 0 it means we have exited all brackets
     bracket_counter = 0
-    length = len(string)
     idx = 0
 
     while idx < length:
@@ -235,6 +277,8 @@ def create_method_tree(string):
         if char != NEGATION_SIGN and bracket_counter == 0 and not done_first_statement:
             # switch which statement we are collecting and store the operator
             done_first_statement = True
+            if idx + 1 >= length:
+                raise InvalidCharacterException(string, idx, "expected operator")
             operator = string[idx + 1]
             if operator not in OPERATORS:
                 raise InvalidCharacterException(string, idx, "expected operator")
@@ -250,24 +294,14 @@ def create_method_tree(string):
     # loops through the statements and checks if they are only the length of one which means it is a variable
     # if so it appends the NORMAL method which is the only method returning a boolean value
     # if not it pareses the string again by calling itself and then adds this sub_tree to the current tree
-    for idx in range(len(statements)):
-        statement = statements[idx]
-        length = len(statement)
-        if 1 <= length <= 2:
-            stripped = statement.lstrip(NEGATION_SIGN)
-            if stripped not in variables:
-                variables.append(stripped)
-            if statement.startswith(NEGATION_SIGN):
-                methods_list.append([NOT, [NORMAL, stripped]])
-            else:
-                methods_list.append([NORMAL, stripped])
-        else:
-            sub_variables, sub_tree = create_method_tree(statement)
-            # TODO: use a set instead of a list to avoid checking for duplicates
-            for i in sub_variables:
-                if i not in variables:
-                    variables.append(i)
-            methods_list.append(sub_tree)
+
+    for statement in statements:
+        sub_variables, sub_tree = create_method_tree(statement)
+        # TODO: use a set instead of a list to avoid checking for duplicates
+        for i in sub_variables:
+            if i not in variables:
+                variables.append(i)
+        methods_list.append(sub_tree)
 
     # finds the correct operator to use and stores the method without calling it
     # TODO: find a better way to do this
@@ -463,8 +497,8 @@ def get_representational_string(table):
 def solve(string):
     """ A function which first creates a truth table and then prints it it also handles all custom exceptions raised
 
-    :param string: The string to process
-    :return: Nothing
+    :param string: The string to process.
+    :return: Nothing.
     """
     try:
         table = create_truth_table(string)
