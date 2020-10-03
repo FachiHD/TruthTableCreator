@@ -56,8 +56,8 @@ REPLACING_DICTIONARY = {
     "xor": XOR_SIGN,
     "or ||": OR_SIGN,
     "if >": IF_SIGN,
-    "unequal !=": UNEQUAL_SIGN,
-    "equal == =": EQUAL_SIGN,
+    "unequal unequals !=": UNEQUAL_SIGN,
+    "equals equal == =": EQUAL_SIGN,
 }
 
 BRACKETS = [
@@ -109,14 +109,14 @@ def IF(var):
 
 
 def EQUALS(var):
-    """Checks if both functions return the same"""
+    """Checks if both results are the same"""
     res1 = var[0][0](var[0][1])
     res2 = var[1][0](var[1][1])
     return not ((res1 and not res2) or (not res1 and res2))
 
 
 def NOT_EQUALS(var):
-    """Checks if both functions return the opposite"""
+    """Checks if both results return the opposite same as XOR"""
     res1 = var[0][0](var[0][1])
     res2 = var[1][0](var[1][1])
     return (res1 and not res2) or (not res1 and res2)
@@ -145,24 +145,55 @@ def remove_redundant_negations(string):
     return string
 
 
+def check_surrounded(string):
+    """ Check if the string as a whole is surrounded by brackets
+
+    :param string: The string to check.
+    :return: True if it is surrounded.
+    """
+    length = len(string)
+    counter = 0
+    for idx in range(length):
+        char = string[idx]
+        if char == OPENING_BRACKET:
+            counter += 1
+        elif char == CLOSING_BRACKET:
+            counter -= 1
+
+        # return the string if we exited all brackets but have not looped through the entire string
+        # meaning there are no more brackets around the entire string
+        if counter == 0 and idx != length - 1:
+            return False
+    return True
+
+
 def polish_statement(string):
-    """ Removes any negations at the left side and removes one layer of brackets around the statement
+    """ Removes any brackets and negations containing the entire string
 
     :param string: The string to process.
-    :return: The processed string.
+    :return: If the statement was negated and the processed string.
     """
-    # TODO: find a better way to polish the string and add more checks for syntax errors
+
+    negated = False
     length = len(string)
-    if length <= 0:
-        raise InvalidCharacterException(string, 0, "cannot polish empty string")
+    while True:
+        # brackets or negations containing the entire string will always have to be on 0 index position
+        char = string[0]
 
-    if string[0] == NEGATION_SIGN:
-        string = string[1:]
-        length = len(string)
+        to_check = string
+        if char == NEGATION_SIGN:
+            to_check = to_check[1:]
 
-    if len(string) <= 1:
-        return string
-    return string[1:length - 1]
+        surrounded = check_surrounded(to_check)
+        if surrounded:
+            if char == NEGATION_SIGN:
+                negated = not negated
+                string = string[1:]
+                length -= 1
+            string = string[1:length - 1]
+            length -= 2
+        else:
+            return negated, string
 
 
 def create_method_tree(string):
@@ -178,6 +209,7 @@ def create_method_tree(string):
     """
 
     # TODO: fix danger coming from rogues characters
+    negated, string = polish_statement(string)
     done_first_statement = False
     first_statement = ""
     second_statement = ""
@@ -211,10 +243,6 @@ def create_method_tree(string):
         idx += 1
 
     # stores any negations because they will be removed in polish_statement
-    negations = [first_statement.startswith(NEGATION_SIGN), second_statement.startswith(NEGATION_SIGN)]
-    first_statement = polish_statement(first_statement)
-    second_statement = polish_statement(second_statement)
-
     methods_list = []
     variables = []
     statements = [first_statement, second_statement]
@@ -225,23 +253,21 @@ def create_method_tree(string):
     for idx in range(len(statements)):
         statement = statements[idx]
         length = len(statement)
-        if length == 1:
-            if statement not in variables:
-                variables.append(statement)
-            if negations[idx]:
-                methods_list.append([NOT, [NORMAL, statement]])
+        if 1 <= length <= 2:
+            stripped = statement.lstrip(NEGATION_SIGN)
+            if stripped not in variables:
+                variables.append(stripped)
+            if statement.startswith(NEGATION_SIGN):
+                methods_list.append([NOT, [NORMAL, stripped]])
             else:
-                methods_list.append([NORMAL, statement])
+                methods_list.append([NORMAL, stripped])
         else:
             sub_variables, sub_tree = create_method_tree(statement)
             # TODO: use a set instead of a list to avoid checking for duplicates
             for i in sub_variables:
                 if i not in variables:
                     variables.append(i)
-            if negations[idx]:
-                methods_list.append([NOT, sub_tree])
-            else:
-                methods_list.append(sub_tree)
+            methods_list.append(sub_tree)
 
     # finds the correct operator to use and stores the method without calling it
     # TODO: find a better way to do this
@@ -262,18 +288,26 @@ def create_method_tree(string):
     else:
         raise Exception("reached end of operator checker without conclusion")
 
-    return variables, [
-        func,
-        methods_list
-    ]
+    if negated:
+        return variables, [
+            NOT, [
+                func,
+                methods_list
+            ]
+        ]
+    else:
+        return variables, [
+            func,
+            methods_list
+        ]
 
 
 def get_matching_brackets(string):
     """ Returns a dictionary of matching brackets also checks for any syntax errors regarding brackets
 
-    Works by adding every `OPENING_BRACKET` index to a dictionary as a key. When finding a `CLOSING_BRACKET` it searches
-    for the highest key which has not yet been assigned a `CLOSING_BRACKET` index if it finds one it assigns it. Should
-    it encounter any discrepancies a `InvalidBracketException` is raised.
+    Works by adding every OPENING_BRACKET index to a dictionary as a key. When finding a CLOSING_BRACKET it searches
+    for the highest key which has not yet been assigned a CLOSING_BRACKET index if it finds one it assigns it. Should
+    it encounter any discrepancies a InvalidBracketException is raised.
 
     :param string: The string to create this dictionary for.
     :return: The dictionary having all `OPENING_BRACKETS` as keys and their `CLOSING_BRACKETS` as values
@@ -304,7 +338,7 @@ def get_matching_brackets(string):
 def replace_with_conform_operators(string):
     """ Replaces all keywords with their corresponding operator
 
-    Loops through every key in `REPLACING_DICTIONARY` and splits. It then loops through the splitted list
+    Loops through every key in REPLACING_DICTIONARY and splits. It then loops through the splitted list
     to replace all occurrences of every element in this list with the corresponding one character operator.
 
     :param string: The string to replace in.
@@ -324,7 +358,7 @@ def generate_truth_values(variables):
 
     Generates a 2 dimensional array of lists in the shape of a typical truth table in which the different columns
     represent the columns in a real truth table. The lists up until not including the last one all have their 0 index
-    set to a variables present in `variables`. The last list is filled with `None` and should be used to store results.
+    set to a variables present in variables. The last list is filled with None and should be used to store results.
 
     :param variables: List of variables to use.
     :return: The empty truth table with an extra list at the end to store the results in.
@@ -333,9 +367,9 @@ def generate_truth_values(variables):
     variable_count = len(variables)
     column_length = int(math.pow(2, variable_count))
 
-    # the inner loop works by having a counter and a limit "switch_at" which when reached will switch "current_value"
-    # "current_value" is added every loop to "holder"
-    # "switch_at" is calculated using 2 to the power of "i" because "i" counts down the last list will switch every time
+    # the inner loop works by having a counter and a limit switch_at which when reached will switch current_value
+    # current_value is added every loop to holder
+    # switch_at is calculated using 2 to the power of i because i counts down the last list will switch every time
     for i in range(variable_count - 1, -1, -1):
         holder = [variables[variable_count - i - 1]]
         current_value = False
@@ -353,6 +387,13 @@ def generate_truth_values(variables):
 
 
 def run_truth_table(tree, table, variables):
+    """ Runs a method tree and fills an empty truth table with the given values
+
+    :param tree: The tree to run.
+    :param table: The truth table to fill and use.
+    :param variables: The variables present in the statement.
+    :return: The filled out truth table.
+    """
     global VALUES
     variable_count = len(variables)
     for step in range(int(math.pow(2, variable_count))):
@@ -364,6 +405,11 @@ def run_truth_table(tree, table, variables):
 
 
 def create_truth_table(string: str) -> list:
+    """ Collection of functions which polish, check, optimize and parse the given string
+
+    :param string: The string to process.
+    :return: The filled out truth table.
+    """
     # -- polish the statement --
     string = replace_with_conform_operators(string)
     string = string.lower().replace(" ", "").rstrip().lstrip().rstrip("-")
@@ -389,6 +435,11 @@ def boolean_to_int(value):
 
 
 def get_representational_string(table):
+    """ Returns a string which represents a given truth table
+
+    :param table: The table to represent.
+    :return: The generated string.
+    """
     variables = []
     for i in range(len(table) - 1):
         variables.append(table[i][0])
@@ -410,6 +461,11 @@ def get_representational_string(table):
 
 
 def solve(string):
+    """ A function which first creates a truth table and then prints it it also handles all custom exceptions raised
+
+    :param string: The string to process
+    :return: Nothing
+    """
     try:
         table = create_truth_table(string)
         print(get_representational_string(table))
