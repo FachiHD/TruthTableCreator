@@ -63,6 +63,8 @@ OPERATORS = [
     UNEQUAL_SIGN
 ]
 
+print(len(OPERATORS))
+
 REPLACING_DICTIONARY = {
     "true": TRUE_SIGN,
     "false": FALSE_SIGN,
