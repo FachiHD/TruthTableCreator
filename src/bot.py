@@ -18,7 +18,7 @@ caching = config.get("CACHING", "use_caching", fallback=True)
 caching_dir = config.get("CACHING", "caching_dir", fallback="cached")
 
 
-client = commands.Bot(command_prefix="#", owner_id=owner_id)
+client = commands.Bot(command_prefix=command_prefix, owner_id=owner_id)
 
 
 @client.command()
