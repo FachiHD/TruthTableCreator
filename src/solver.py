@@ -1,5 +1,6 @@
 import math
 import sys
+import traceback
 
 # TODO: make index optional for exceptions as it confuses the end user
 
@@ -546,6 +547,8 @@ def solve(string):
         print(get_representational_string(table))
     except SolverException as e:
         sys.stderr.write(e.error_message)
+    except BaseException as e:
+        traceback.print_exc()
 
 
 # No need to type I have already copied it

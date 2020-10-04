@@ -1,11 +1,9 @@
 from discord.ext import commands
 import os
 import hashlib
-import tempfile
 import discord
 import traceback
-import solver
-import time
+from src import solver
 
 client = commands.Bot(command_prefix="#", owner_id=286907674531201025)
 
@@ -29,7 +27,7 @@ async def solve(ctx, *args):
         os.mkdir("cached")
 
     if fp in os.listdir("cached"):
-        with open(f"cached/{fp}", "r") as f:
+        with open(f"src/cached/{fp}", "r") as f:
             string = f.read()
             cached = True
     else:
@@ -43,7 +41,7 @@ async def solve(ctx, *args):
             string = traceback.format_exc()
 
         else:
-            with open(f"cached/{fp}", "w+") as f:
+            with open(f"src/cached/{fp}", "w+") as f:
                 string = solver.get_representational_string(table)
                 f.write(string)
                 cached = False
@@ -62,7 +60,7 @@ async def solve(ctx, *args):
     await ctx.send(embed=embed)
 
     if len(string) + 8 > 2000:
-        if os.path.exists(f"cached/{hash_}.txt"):
+        if os.path.exists(f"src/cached/{hash_}.txt"):
             await ctx.send(
                 "```The message was too long so it is in this file.```",
                 file=discord.File(f"cached/{hash_}.txt", f"{hash_}.txt")
@@ -73,4 +71,4 @@ async def solve(ctx, *args):
         await ctx.send(f"```\n{string}```")
 
 
-client.run("NzYxNTU3MTc3MjkwMTk1MDM2.X3cVZA.37thwm2CS1tN9sV8y_50XskE5rQ")
+client.run("YOUR TOKEN HERE")
