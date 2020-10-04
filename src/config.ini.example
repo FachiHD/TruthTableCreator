@@ -1,0 +1,11 @@
+[BOT]
+# as all values are natively interpreted as strings you must not put "" around values
+owner_id = your personal id here
+command_prefix = #
+token = your bot token here
+
+[CACHING]
+# currently NO caching options work they will be implemented in the future
+use_caching = True
+caching_dir = cached
+

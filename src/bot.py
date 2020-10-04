@@ -3,10 +3,22 @@ import os
 import hashlib
 import discord
 import traceback
-from src import solver
+import solver
+import configparser
 
-# TODO: add possibility to turn of caching
-client = commands.Bot(command_prefix="#", owner_id=286907674531201025)
+config = configparser.ConfigParser()
+config.read("config.ini")
+sections = config.sections()
+# TODO: add more comments on what options do
+owner_id = int(config.get("BOT", "owner_id", fallback=None))
+command_prefix = config.get("BOT", "command_prefix", fallback="#")
+token = config.get("BOT", "token", fallback=None)
+# TODO: implement any of these option
+caching = config.get("CACHING", "use_caching", fallback=True)
+caching_dir = config.get("CACHING", "caching_dir", fallback="cached")
+
+
+client = commands.Bot(command_prefix="#", owner_id=owner_id)
 
 
 @client.command()
@@ -72,4 +84,4 @@ async def solve(ctx, *args):
         await ctx.send(f"```\n{string}```")
 
 
-client.run("YOUR TOKEN HERE")
+client.run(token)
