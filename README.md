@@ -20,4 +20,12 @@ For a little more complexity the [create_truth_table](src/solver.py) function cr
 given a statement as a string. You can get a string representing such a truth table by calling the 
 [get_representational_string](src/solver.py) method which returns a string representing the truth table.
 
-
+### Bot
+This script contains a discord bot which can be run by passing a token. Currently two commands are supported 
+[solve](src/bot.py) and [clear_cache](src/bot.py). The first parses a given string and sends the truth table in the 
+channel. Should the message be over 2000 which is the discord message character limit the truth table will be send
+in a file. Because the bot also supports the caching of truth tables for performance reasons there exists 
+[clear_cache](src/bot.py) which clears the internal cache.
+  
+The cache works by first pre-processing the statement and then calculating its hash and afterwards checking if that
+hash has been saved in [cached](src/cached).

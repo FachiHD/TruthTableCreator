@@ -5,6 +5,7 @@ import discord
 import traceback
 from src import solver
 
+# TODO: add possibility to turn of caching
 client = commands.Bot(command_prefix="#", owner_id=286907674531201025)
 
 
