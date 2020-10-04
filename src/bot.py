@@ -1,13 +1,24 @@
 from discord.ext import commands
 import os
 import hashlib
-import tempfile
 import discord
 import traceback
 import solver
-import time
+import configparser
 
-client = commands.Bot(command_prefix="#", owner_id=286907674531201025)
+config = configparser.ConfigParser()
+config.read("config.ini")
+sections = config.sections()
+# TODO: add more comments on what options do
+owner_id = int(config.get("BOT", "owner_id", fallback=None))
+command_prefix = config.get("BOT", "command_prefix", fallback="#")
+token = config.get("BOT", "token", fallback=None)
+# TODO: implement any of these option
+caching = config.get("CACHING", "use_caching", fallback=True)
+caching_dir = config.get("CACHING", "caching_dir", fallback="cached")
+
+
+client = commands.Bot(command_prefix=command_prefix, owner_id=owner_id)
 
 
 @client.command()
@@ -29,7 +40,7 @@ async def solve(ctx, *args):
         os.mkdir("cached")
 
     if fp in os.listdir("cached"):
-        with open(f"cached/{fp}", "r") as f:
+        with open(f"src/cached/{fp}", "r") as f:
             string = f.read()
             cached = True
     else:
@@ -43,7 +54,7 @@ async def solve(ctx, *args):
             string = traceback.format_exc()
 
         else:
-            with open(f"cached/{fp}", "w+") as f:
+            with open(f"src/cached/{fp}", "w+") as f:
                 string = solver.get_representational_string(table)
                 f.write(string)
                 cached = False
@@ -62,7 +73,7 @@ async def solve(ctx, *args):
     await ctx.send(embed=embed)
 
     if len(string) + 8 > 2000:
-        if os.path.exists(f"cached/{hash_}.txt"):
+        if os.path.exists(f"src/cached/{hash_}.txt"):
             await ctx.send(
                 "```The message was too long so it is in this file.```",
                 file=discord.File(f"cached/{hash_}.txt", f"{hash_}.txt")
@@ -73,4 +84,4 @@ async def solve(ctx, *args):
         await ctx.send(f"```\n{string}```")
 
 
-client.run("NzYxNTU3MTc3MjkwMTk1MDM2.X3cVZA.37thwm2CS1tN9sV8y_50XskE5rQ")
+client.run(token)
