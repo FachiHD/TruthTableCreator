@@ -35,6 +35,7 @@ hash has been saved in [cached](src/cached).
 
 # Operators
 Currently 9 operators are supported. These are represent internally by their corresponding variables and can be changed.
+On the left side are their aliases which are replaced in the statement during pre-processing of a statement.
 
  - `[not, !, -]` -> ¬ (negation)
  - `[and, &&]` -> ∧ (and)
@@ -45,6 +46,10 @@ Currently 9 operators are supported. These are represent internally by their cor
  - `[if >]` -> → (if)
  - `[equals, equal, ==, =]` -> ↔ (equal)
  - `[unequal, unequals, !=]` -> ⇹ (unequal)
+
+Constants are also supported
+ - `[true]` -> 1 (true)
+ - `[false]` -> 0 (false)
 
 # Note
 At the moment the script does **NOT** pay attention to operator hierarchy which means all statements must be contained
