@@ -63,8 +63,6 @@ OPERATORS = [
     UNEQUAL_SIGN
 ]
 
-print(len(OPERATORS))
-
 REPLACING_DICTIONARY = {
     "true": TRUE_SIGN,
     "false": FALSE_SIGN,
@@ -76,7 +74,7 @@ REPLACING_DICTIONARY = {
     "or ||": OR_SIGN,
     "if >": IF_SIGN,
     "unequal unequals !=": UNEQUAL_SIGN,
-    "equals equal == =": EQUAL_SIGN,
+    "equals equal == =": EQUAL_SIGN
 }
 
 BRACKETS = [
@@ -113,51 +111,63 @@ def NOT(var):
 def AND(var):
     """Checks if both results are true"""
     res1 = var[0][0](*var[0][1:])
+    if not res1:
+        return False
     res2 = var[1][0](*var[1][1:])
-    return res1 and res2
+    return res2
 
 
 def NAND(var):
     res1 = var[0][0](*var[0][1:])
+    if not res1:
+        return True
     res2 = var[1][0](*var[1][1:])
-    return not (res1 and res2)
+    return not res2
 
 
 def OR(var):
     """Checks if any result is true"""
     res1 = var[0][0](*var[0][1:])
+    if res1:
+        return True
     res2 = var[1][0](*var[1][1:])
-    return res1 or res2
+    return res2
 
 
 def NOR(var):
     res1 = var[0][0](*var[0][1:])
+    if res1:
+        return False
     res2 = var[1][0](*var[1][1:])
-    return not (res1 or res2)
+    return not res2
 
 
 def XOR(var):
     """Checks that only one result is true"""
+    # TODO: add optimizations for xor, equals, unequals
     res1 = var[0][0](*var[0][1:])
     res2 = var[1][0](*var[1][1:])
+
     return (res1 and not res2) or (not res1 and res2)
 
 
 def IF(var):
     """Returns true if result one is false else it returns result two"""
     res1 = var[0][0](*var[0][1:])
+    if not res1:
+        return True
     res2 = var[1][0](*var[1][1:])
-    return not res1 or res2
+    return res2
 
 
-def EQUALS(var):
+def EQUAL(var):
     """Checks if both results are the same"""
     res1 = var[0][0](*var[0][1:])
     res2 = var[1][0](*var[1][1:])
-    return not ((res1 and not res2) or (not res1 and res2))
+    return (res1 and res2) or (not res1 and not res2)
 
 
-def NOT_EQUALS(var):
+def UNEQUAL(var):
     """Checks if both results return the opposite same as XOR"""
     res1 = var[0][0](*var[0][1:])
     res2 = var[1][0](*var[1][1:])
@@ -342,9 +352,9 @@ def create_method_tree(string):
     elif operator == IF_SIGN:
         func = IF
     elif operator == EQUAL_SIGN:
-        func = EQUALS
+        func = EQUAL
     elif operator == UNEQUAL_SIGN:
-        func = NOT_EQUALS
+        func = UNEQUAL
     elif operator == NAND_SIGN:
         func = NAND
     elif operator == NOR_SIGN:
@@ -481,6 +491,100 @@ def pre_process_statement(string):
     return string
 
 
+def apply_de_morgan(table, variables):
+    pass
+
+
+def transform_into_normal_forms(tree):
+    operator = tree[0]
+    # the "=! NOT" exist to prevent creating double negations
+    if operator == IF:
+        # a if b -> -a or b
+        tree[0] = OR
+        a = transform_into_normal_forms(tree[1][0])
+        b = transform_into_normal_forms(tree[1][1])
+        if a[0] != NOT:
+            tree[1][0] = [NOT, a]
+        else:
+            tree[1][0] = a[1]
+
+        tree[1][1] = b
+
+    elif operator == EQUAL:
+        # a equals b -> (a and b) or (-a and -b) -> (a and b) or -(a or b)
+        tree[0] = OR
+        a = transform_into_normal_forms(tree[1][0])
+        b = transform_into_normal_forms(tree[1][1])
+        tree[1][0] = [AND, [a, b]]
+        tree[1][1] = [NOT, [OR, [a, b]]]
+
+    elif operator == UNEQUAL:
+        # a unequals b -> -(a and b) and -(-a and -b) -> -(a and b) and (a or b)
+        tree[0] = AND
+        a = transform_into_normal_forms(tree[1][0])
+        b = transform_into_normal_forms(tree[1][1])
+        tree[1][1] = [NOT, [AND, [a, b]]]
+        tree[1][0] = [OR, [a, b]]
+
+    elif operator == XOR:
+        # a xor b -> (-a and b) or (a and -b)
+        tree[0] = OR
+        a = transform_into_normal_forms(tree[1][0])
+        b = transform_into_normal_forms(tree[1][1])
+        if a[0] != NOT:
+            tree[1][1] = [AND, [[NOT, a], b]]
+        else:
+            tree[1][1] = [AND, [a, b]]
+
+        if b[0] != NOT:
+            tree[1][0] = [AND, [a, [NOT, b]]]
+        else:
+            tree[1][0] = [AND, [a, b]]
+
+    elif operator == NAND:
+        # a nand b -> -(a and b)
+        if tree[0] != NOT:
+            tree[0] = NOT
+        tree[1] = [AND, transform_into_normal_forms(tree[1])]
+
+    elif operator == NOR:
+        # a nor b -> -(a or b)
+        if tree[0] != NOT:
+            tree[0] = NOT
+        tree[1] = [OR, transform_into_normal_forms(tree[1])]
+
+    elif operator == NORMAL:
+        return tree
+
+    elif operator == NOT:
+        tree[1] = transform_into_normal_forms(tree[1])
+
+    else:
+        tree[1][0] = transform_into_normal_forms(tree[1][0])
+        tree[1][1] = transform_into_normal_forms(tree[1][1])
+    return tree
+
+
+def optimize_truth_table(tree, variables):
+    tree = transform_into_normal_forms(tree)
+    print(f"Normal Forms: {reconstruct_from_table(tree)}")
+    return tree
+
+
+def reconstruct_from_table(table, first=True):
+    operator = table[0]
+    if operator == NORMAL:
+        return table[1]
+
+    elif operator == NOT:
+        return NEGATION_SIGN + reconstruct_from_table(table[1], first=False)
+
+    else:
+        return f"{'(' if not first else ''}{reconstruct_from_table(table[1][0], first=False)} " \
+               f"{globals()[f'{operator.__name__}_SIGN']} " \
+               f"{reconstruct_from_table(table[1][1], first=FALSE())}{')' if not first else ''}"
+
+
 def create_truth_table(string, pre_process=True):
     """ Collection of functions which polish, check, optimize and parse the given string
 
@@ -497,11 +601,13 @@ def create_truth_table(string, pre_process=True):
     get_matching_brackets(string)
     # TODO: check for rogue characters
 
-    # -- optimize the statement --
-    # TODO: add optimization algorithms
+    # -- create the method tree --
+    variables, method_tree = create_method_tree(string)
+
+    # -- optimize the method tree --
+    method_tree = optimize_truth_table(method_tree, variables)
 
     # -- parse the statement --
-    variables, method_tree = create_method_tree(string)
     truth_table = generate_truth_values(variables)
     completed_truth_table = run_truth_table(method_tree, truth_table, variables)
 

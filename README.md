@@ -44,7 +44,7 @@ On the left side are their aliases which are replaced in the statement during pr
  - `[nor]` -> ⊽ (nor)
  - `[xor]` -> ⊻ (xor)
  - `[if >]` -> → (if)
- - `[equals, equal, ==, =]` -> ↔ (equal)
+ - `[equals, equal, ==, =]` -> \↔ (equal)
  - `[unequal, unequals, !=]` -> ⇹ (unequal)
 
 Constants are also supported
