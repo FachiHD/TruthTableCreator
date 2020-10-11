@@ -52,8 +52,7 @@ Constants are also supported
  - `[false]` -> 0 (false)
 
 # Note
-At the moment the script does **NOT** pay attention to operator hierarchy which means all statements must be contained
-within brackets. It also does not currently support any optimization algorithms which automatically detect always 
+It also does not currently support any optimization algorithms which automatically detect always 
 false/true statements. It currently also works with recursion which means really big formulas will crash the
 program.
 
