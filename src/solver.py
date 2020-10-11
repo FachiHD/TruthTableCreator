@@ -83,6 +83,7 @@ BRACKETS = [
 ]
 
 VALUES = {}
+VERBOSITY = False
 
 # TODO: better documenting for the gates (more consistency)
 
@@ -457,7 +458,7 @@ def get_matching_brackets(string):
 
 
 def replace_with_conform_operators(string):
-    """ Replaces all keywords with their corresponding operator
+    """ Replaces all keywords found in REPLACING_DICTIONARY with their corresponding operator
 
     Loops through every key in REPLACING_DICTIONARY and splits. It then loops through the splitted list
     to replace all occurrences of every element in this list with the corresponding one character operator.
@@ -520,13 +521,13 @@ def run_truth_table(tree, table, variables):
     for step in range(int(math.pow(2, variable_count))):
         for column in range(variable_count):
             VALUES[table[column][0]] = table[column][step + 1]
-        res = tree[0](tree[1])
+        res = tree[0](*tree[1:])
         table[variable_count][step] = res
     return table
 
 
 def pre_process_statement(string):
-    """ Pre processes a given string to be then further processed
+    """ Removes whitespaces, replaces operators, removes double negations, etc.
 
     :param string: The string to process.
     :return: The processed string.
@@ -543,19 +544,20 @@ def apply_de_morgan(tree):
 
 
 def get_variables(tree):
-    if tree[0] == NORMAL:
-        return [tree[1]]
+    operator = tree[0]
+    if operator == NORMAL:
+        return {tree[1]}
+    elif operator == NOT:
+        return get_variables(tree[1])
+    elif operator in (TRUE, FALSE):
+        return set({})
     else:
-        variables = get_variables(tree[1][0])
+        variables1 = get_variables(tree[1][0])
         variables2 = get_variables(tree[1][1])
-        for i in variables:
-            if i not in variables2:
-                variables2.append(i)
-        return variables2
+        return variables1 | variables2
 
 
 def replace_with_same_resulting_operators(tree):
-    variables = get_variables(tree)
     if tree[0] == NORMAL:
         return tree
     elif tree[0] == NOT:
@@ -563,19 +565,39 @@ def replace_with_same_resulting_operators(tree):
     else:
         tree[1][0] = replace_with_same_resulting_operators(tree[1][0])
         tree[1][1] = replace_with_same_resulting_operators(tree[1][1])
+    variables = list(get_variables(tree))
 
+    table = generate_truth_values(variables)
+    table = run_truth_table(tree, table, variables)
+    tree_result = table[-1]
     if len(variables) == 2:
-        table = generate_truth_values(variables)
-        table = run_truth_table(tree, table, variables)
         # if there are two variables the truth table will contain 3 columns
-        tree_result = table[2]
         for idx in range(len(OPERATOR_RESULTS)):
             operator_result = OPERATOR_RESULTS[idx]
             if tree_result == operator_result:
-                tree[0] = OPERATOR_RESULTS_OPERATORS[idx]
-                tree[1][0] = variables[0]
-                tree[1][1] = variables[1]
+                operator = OPERATOR_RESULTS_OPERATORS[idx]
+                if operator == FALSE:
+                    tree = [FALSE]
+                elif operator == TRUE:
+                    tree = [TRUE]
+                else:
+                    tree[0] = OPERATOR_RESULTS_OPERATORS[idx]
+                    tree[1][0] = [NORMAL, variables[0]]
+                    tree[1][1] = [NORMAL, variables[1]]
                 return tree
+
+    elif True not in tree_result:
+        return [FALSE]
+
+    elif False not in tree_result:
+        return [TRUE]
+
+    else:
+        # try match the result with any variable
+        for variable_table in table[:-1]:
+            if variable_table[1:] == tree_result:
+                tree = [NORMAL, variable_table[0]]
+
     return tree
 
 
@@ -651,35 +673,51 @@ def transform_into_normal_forms(tree):
 
 def optimize_truth_table(tree, variables):
     tree = transform_into_normal_forms(tree)
-    print(f"Normal Forms: {reconstruct_from_table(tree)}")
+    print(f"Normal forms: {reconstruct_from_tree(tree)}")
     tree = replace_with_same_resulting_operators(tree)
     return tree
 
 
-def reconstruct_from_table(table, first=True):
-    operator = table[0]
+def reconstruct_from_tree(tree, first=True):
+    operator = tree[0]
     if operator == NORMAL:
-        return table[1]
+        return tree[1]
 
     elif operator == NOT:
-        return NOT_SIGN + reconstruct_from_table(table[1], first=False)
+        return NOT_SIGN + reconstruct_from_tree(tree[1], first=False)
+
+    elif operator in (TRUE, FALSE):
+        return globals()[f"{operator.__name__}_SIGN"]
 
     else:
-        return f"{'(' if not first else ''}{reconstruct_from_table(table[1][0], first=False)} " \
+        return f"{'(' if not first else ''}{reconstruct_from_tree(tree[1][0], first=False)} " \
                f"{globals()[f'{operator.__name__}_SIGN']} " \
-               f"{reconstruct_from_table(table[1][1], first=FALSE())}{')' if not first else ''}"
+               f"{reconstruct_from_tree(tree[1][1], first=False)}{')' if not first else ''}"
 
 
-def create_truth_table(string, pre_process=True):
+def verbosity_print(string):
+    if VERBOSITY:
+        print(string)
+
+
+def create_truth_table(string, pre_process=True, optimize=True, verbosity=False):
     """ Collection of functions which polish, check, optimize and parse the given string
 
     :param pre_process: If the string should be pre processed.
+    :param optimize: If the tree should be optimized.
+    :param verbosity: If information should be printed to the console.
     :param string: The string to process.
     :return: The filled out truth table.
     """
+    global VERBOSITY
+    VERBOSITY = verbosity
+
+    verbosity_print(f"Original Statement: {string}")
+
     # -- prepare the statement --
     if pre_process:
         string = pre_process_statement(string)
+    verbosity_print(f"Pre-processed: {string}")
     # TODO: wrap all statements in brackets as to prevent not using operator hierarchy
 
     # -- check for syntax errors --
@@ -688,9 +726,12 @@ def create_truth_table(string, pre_process=True):
 
     # -- create the method tree --
     variables, method_tree = create_method_tree(string)
+    verbosity_print(f"Method Tree: {reconstruct_from_tree(method_tree)}")
 
     # -- optimize the method tree --
-    # method_tree = optimize_truth_table(method_tree, variables)
+    if optimize:
+        method_tree = optimize_truth_table(method_tree, variables)
+    verbosity_print(f"Optimized Statement: {reconstruct_from_tree(method_tree)}")
 
     # -- parse the statement --
     truth_table = generate_truth_values(variables)
@@ -736,7 +777,7 @@ def solve(string):
     :return: Nothing.
     """
     try:
-        table = create_truth_table(string)
+        table = create_truth_table(string, verbosity=True)
         print(get_representational_string(table))
     except SolverException as e:
         sys.stderr.write(e.error_message)
