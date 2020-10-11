@@ -671,9 +671,8 @@ def transform_into_normal_forms(tree):
     return tree
 
 
-def optimize_truth_table(tree, variables):
+def optimize_truth_table(tree):
     tree = transform_into_normal_forms(tree)
-    print(f"Normal forms: {reconstruct_from_tree(tree)}")
     tree = replace_with_same_resulting_operators(tree)
     return tree
 
@@ -730,7 +729,7 @@ def create_truth_table(string, pre_process=True, optimize=True, verbosity=False)
 
     # -- optimize the method tree --
     if optimize:
-        method_tree = optimize_truth_table(method_tree, variables)
+        method_tree = optimize_truth_table(method_tree)
     verbosity_print(f"Optimized Statement: {reconstruct_from_tree(method_tree)}")
 
     # -- parse the statement --
