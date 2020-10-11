@@ -23,7 +23,7 @@ class InvalidCharacterException(SolverException):
 
 TRUE_SIGN = "1"
 FALSE_SIGN = "0"
-NEGATION_SIGN = "¬"
+NOT_SIGN = "¬"
 AND_SIGN = "∧"
 NAND_SIGN = "⊼"
 OR_SIGN = "∨"
@@ -38,7 +38,7 @@ CLOSING_BRACKET = ")"
 SPECIAL_CHARACTERS = [
     TRUE_SIGN,
     FALSE_SIGN,
-    NEGATION_SIGN,
+    NOT_SIGN,
     AND_SIGN,
     NAND_SIGN,
     OR_SIGN,
@@ -52,7 +52,7 @@ SPECIAL_CHARACTERS = [
 ]
 
 OPERATORS = [
-    NEGATION_SIGN,
+    NOT_SIGN,
     AND_SIGN,
     NAND_SIGN,
     OR_SIGN,
@@ -66,7 +66,7 @@ OPERATORS = [
 REPLACING_DICTIONARY = {
     "true": TRUE_SIGN,
     "false": FALSE_SIGN,
-    "not ! -": NEGATION_SIGN,
+    "not ! -": NOT_SIGN,
     "nand": NAND_SIGN,
     "and &&": AND_SIGN,
     "nor": NOR_SIGN,
@@ -174,6 +174,43 @@ def UNEQUAL(var):
     return (res1 and not res2) or (not res1 and res2)
 
 
+# TODO: maybe use the bit representation number instead of lists to speed up checking
+# we do not need equal as it is the same as xor
+OPERATOR_RESULTS = [
+    [0, 0, 0, 1],
+    [1, 1, 1, 0],
+    [0, 1, 1, 1],
+    [1, 0, 0, 0],
+    [0, 1, 1, 0],
+    [1, 0, 0, 1],
+    [1, 1, 1, 1],
+    [0, 0, 0, 0]
+]
+
+OPERATOR_RESULTS_OPERATORS = [
+    AND,
+    NAND,
+    OR,
+    NOR,
+    XOR,
+    EQUAL,
+    TRUE,
+    FALSE
+]
+
+OPERATOR_HIERARCHY = [
+    NOT_SIGN,
+    AND_SIGN,
+    NAND_SIGN,
+    OR_SIGN,
+    NOR_SIGN,
+    XOR_SIGN,
+    IF_SIGN,
+    EQUAL_SIGN,
+    UNEQUAL_SIGN
+]
+
+
 def remove_redundant_negations(string):
     """ Removes any doubled negations in the string
 
@@ -183,9 +220,9 @@ def remove_redundant_negations(string):
     string_length = len(string)
     idx = 0
     while idx < string_length:
-        if string[idx] == NEGATION_SIGN:
+        if string[idx] == NOT_SIGN:
             # check for the next position and check if it is also a negation if so remove both
-            if idx + 1 <= string_length and string[idx + 1] == NEGATION_SIGN:
+            if idx + 1 <= string_length and string[idx + 1] == NOT_SIGN:
                 string = string[0:idx] + string[idx + 2:string_length]
                 idx -= 2
                 string_length -= 2
@@ -232,18 +269,18 @@ def polish_statement(string):
     negated = False
     length = len(string)
     if length <= 2:
-        return string.startswith(NEGATION_SIGN), string
+        return string.startswith(NOT_SIGN), string
     while True:
         # brackets or negations containing the entire string will always have to be on 0 index position
         char = string[0]
 
         to_check = string
-        if char == NEGATION_SIGN:
+        if char == NOT_SIGN:
             to_check = to_check[1:]
 
         surrounded = check_surrounded(to_check)
         if surrounded:
-            if char == NEGATION_SIGN:
+            if char == NOT_SIGN:
                 negated = not negated
                 string = string[1:]
                 length -= 1
@@ -268,7 +305,7 @@ def create_method_tree(string):
     negated, string = polish_statement(string)
     length = len(string)
     if length <= 2:
-        stripped = string.lstrip(NEGATION_SIGN)
+        stripped = string.lstrip(NOT_SIGN)
         # check if the string is a constant
         if string == TRUE_SIGN:
             stripped = None
@@ -280,7 +317,7 @@ def create_method_tree(string):
             args = [NORMAL, stripped]
 
         if negated:
-            stripped = string.lstrip(NEGATION_SIGN)
+            stripped = string.lstrip(NOT_SIGN)
             return stripped, [
                 NOT, args
             ]
@@ -288,38 +325,48 @@ def create_method_tree(string):
             return stripped, args
 
     # TODO: fix danger coming from rogues characters
-    done_first_statement = False
-    first_statement = ""
-    second_statement = ""
-    operator = ""
     # incremented every time we pass a OPENING_BRACKET and decremented every time we pass a CLOSING_BRACKET
     # when this is 0 it means we have exited all brackets
+    operators = {}
     bracket_counter = 0
     idx = 0
 
-    while idx < length:
+    while idx < length - 1:
         char = string[idx]
-        if not done_first_statement:
-            first_statement += char
-        else:
-            second_statement += char
 
         if char == OPENING_BRACKET:
             bracket_counter += 1
         elif char == CLOSING_BRACKET:
             bracket_counter -= 1
 
-        if char != NEGATION_SIGN and bracket_counter == 0 and not done_first_statement:
-            # switch which statement we are collecting and store the operator
-            done_first_statement = True
-            if idx + 1 >= length:
-                raise InvalidCharacterException(string, idx, "expected operator")
+        if char != NOT_SIGN and bracket_counter == 0:
+            # we have exited all brackets the next char should be an operator
             operator = string[idx + 1]
+            operators[idx + 1] = operator
             if operator not in OPERATORS:
                 raise InvalidCharacterException(string, idx, "expected operator")
             idx += 1
             bracket_counter = 0
         idx += 1
+
+    operator = None
+    first_statement = None
+    second_statement = None
+    break_second_loop = True
+    i = 0
+    length = len(OPERATOR_HIERARCHY)
+    # extract the correct operator to use minding the operator hierarchy
+    while break_second_loop and i < length:
+        operator = OPERATOR_HIERARCHY[i]
+        for idx in operators:
+            if operators[idx] == operator:
+                # we have found the right operator
+                first_statement = string[:idx]
+                second_statement = string[idx + 1:]
+                operator = operators[idx]
+                break_second_loop = False
+                break
+        i += 1
 
     # stores any negations because they will be removed in polish_statement
     methods_list = []
@@ -491,8 +538,45 @@ def pre_process_statement(string):
     return string
 
 
-def apply_de_morgan(table, variables):
+def apply_de_morgan(tree):
     pass
+
+
+def get_variables(tree):
+    if tree[0] == NORMAL:
+        return [tree[1]]
+    else:
+        variables = get_variables(tree[1][0])
+        variables2 = get_variables(tree[1][1])
+        for i in variables:
+            if i not in variables2:
+                variables2.append(i)
+        return variables2
+
+
+def replace_with_same_resulting_operators(tree):
+    variables = get_variables(tree)
+    if tree[0] == NORMAL:
+        return tree
+    elif tree[0] == NOT:
+        tree[1] = replace_with_same_resulting_operators(tree[1])
+    else:
+        tree[1][0] = replace_with_same_resulting_operators(tree[1][0])
+        tree[1][1] = replace_with_same_resulting_operators(tree[1][1])
+
+    if len(variables) == 2:
+        table = generate_truth_values(variables)
+        table = run_truth_table(tree, table, variables)
+        # if there are two variables the truth table will contain 3 columns
+        tree_result = table[2]
+        for idx in range(len(OPERATOR_RESULTS)):
+            operator_result = OPERATOR_RESULTS[idx]
+            if tree_result == operator_result:
+                tree[0] = OPERATOR_RESULTS_OPERATORS[idx]
+                tree[1][0] = variables[0]
+                tree[1][1] = variables[1]
+                return tree
+    return tree
 
 
 def transform_into_normal_forms(tree):
@@ -568,6 +652,7 @@ def transform_into_normal_forms(tree):
 def optimize_truth_table(tree, variables):
     tree = transform_into_normal_forms(tree)
     print(f"Normal Forms: {reconstruct_from_table(tree)}")
+    tree = replace_with_same_resulting_operators(tree)
     return tree
 
 
@@ -577,7 +662,7 @@ def reconstruct_from_table(table, first=True):
         return table[1]
 
     elif operator == NOT:
-        return NEGATION_SIGN + reconstruct_from_table(table[1], first=False)
+        return NOT_SIGN + reconstruct_from_table(table[1], first=False)
 
     else:
         return f"{'(' if not first else ''}{reconstruct_from_table(table[1][0], first=False)} " \
@@ -605,7 +690,7 @@ def create_truth_table(string, pre_process=True):
     variables, method_tree = create_method_tree(string)
 
     # -- optimize the method tree --
-    method_tree = optimize_truth_table(method_tree, variables)
+    # method_tree = optimize_truth_table(method_tree, variables)
 
     # -- parse the statement --
     truth_table = generate_truth_values(variables)
