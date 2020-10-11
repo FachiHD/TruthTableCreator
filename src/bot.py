@@ -5,6 +5,7 @@ import discord
 import traceback
 import solver
 import configparser
+import random
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -29,8 +30,7 @@ async def clear_cache(ctx, *args):
 
 @client.command()
 async def solve(ctx, *args):
-    statement = " ".join(args)
-    pre_processed = solver.pre_process_statement(" ".join(args))
+    """
     hasher = hashlib.sha256(pre_processed.encode())
     hash_ = hasher.hexdigest()
     fp = f"{hash_}.txt"
@@ -40,46 +40,60 @@ async def solve(ctx, *args):
         os.mkdir("cached")
 
     if fp in os.listdir("cached"):
-        with open(f"src/cached/{fp}", "r") as f:
+        with open(f"cached/{fp}", "r") as f:
             string = f.read()
             cached = True
+    """
+    try:
+        statement = " ".join(args)
+        pre_processed = solver.pre_process_statement(" ".join(args))
+        solver.get_matching_brackets(pre_processed)
+        variables, method_tree = solver.create_method_tree(pre_processed)
+        method_tree = solver.optimize_truth_table(method_tree)
+        optimized_statement = solver.reconstruct_from_tree(method_tree)
+        table = solver.generate_truth_values(variables)
+        table = solver.run_truth_table(method_tree, table, variables)
+        pre_processed = pre_processed.replace(solver.EQUAL_SIGN, "\\" + solver.EQUAL_SIGN)
+        optimized_statement = solver.reconstruct_from_tree(method_tree)
+
+        embed = discord.Embed(
+            title="Truth Table Creator",
+            description=f"Original Statement: {statement}\nStatement: {pre_processed}\nOptimized: {optimized_statement}",
+            color=discord.Color.green()
+        )
+        creator = await client.fetch_user(286907674531201025)
+
+        embed.set_footer(
+            text=f"Made by {creator}.",
+            icon_url=creator.avatar_url
+        )
+        await ctx.send(embed=embed)
+        string = solver.get_representational_string(table)
+    except solver.SolverException as e:
+        string = e.error_message
+    except BaseException as e:
+        # TODO: catch different exceptions and provide better information
+        string = traceback.format_exc()
+
+    """
     else:
-        try:
-            table = solver.create_truth_table(pre_processed, pre_process=False)
-        except solver.SolverException as e:
-            string = e.error_message
-
-        except BaseException as e:
-            # TODO: catch different exceptions and provide better information
-            string = traceback.format_exc()
-
-        else:
-            with open(f"src/cached/{fp}", "w+") as f:
-                string = solver.get_representational_string(table)
-                f.write(string)
-                cached = False
-
-    embed_statement = pre_processed.replace(solver.EQUAL_SIGN, "\\" + solver.EQUAL_SIGN)
-    embed = discord.Embed(
-        title="Truth Table Creator",
-        description=f"Original Statement: {statement}\nStatement: {embed_statement}\nHash: {hash_}\nCached: {cached}",
-        color=discord.Color.green()
-    )
-    creator = await client.fetch_user(286907674531201025)
-    embed.set_footer(
-        text=f"Made by {creator}.",
-        icon_url=creator.avatar_url
-    )
-    await ctx.send(embed=embed)
+        with open(f"cached/{fp}", "w+") as f:
+            string = solver.get_representational_string(table)
+            f.write(string)
+            cached = False
+    """
 
     if len(string) + 8 > 2000:
-        if os.path.exists(f"src/cached/{hash_}.txt"):
+        # TODO: use tempfile
+        fp = f"cached/{random.randint(1, 1000)}.txt"
+        with open(fp, "rw+") as f:
+            f.write(string)
             await ctx.send(
-                "```The message was too long so it is in this file.```",
-                file=discord.File(f"cached/{hash_}.txt", f"{hash_}.txt")
+                "```The message was too long so it was put in this file.```",
+                file=discord.File(fp, fp.lstrip("cached/"))
             )
-        else:
-            await ctx.send("```Error: The message was too long but the table was not cached.```")
+
+        os.remove(fp)
     else:
         await ctx.send(f"```\n{string}```")
 
