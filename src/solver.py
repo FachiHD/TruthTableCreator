@@ -788,5 +788,9 @@ def console_solve():
         solve(input("Formula: "))
 
 
+if __name__ == '__main__':
+    console_solve()
+
+
 # No need to type I have already copied it
 # solve("-(--((-p or --q) and -(q and -p)) equal ((q if p) and (-p or --q))) if ((r and -s) unequal (p and -r))")
