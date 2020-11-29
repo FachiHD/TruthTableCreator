@@ -6,14 +6,11 @@ which allows for creating truth tables within discord.
 
 ### Solver
 The main script includes several layers of abstraction to allow for simple and easy access. If you only want to use the 
-script for what it is the [solve](src/solver.py) function will do the trick. It takes one string as argument the 
-statement and handles all exceptions.
+script for what it is the [console_solve](src/solver.py) function will do the trick.
 ```python
 # a program like this will work for the console
 import solver
-
-while True:
-    solver.solve(input("Formula: "))
+solver.console_solve()
 ```
 
 For a little more complexity the [create_truth_table](src/solver.py) function creates a filled out truth table

@@ -533,8 +533,7 @@ def pre_process_statement(string):
     :return: The processed string.
     """
     string = replace_with_conform_operators(string)
-    string = string.lower().replace(" ", "").rstrip().lstrip().rstrip("-")
-    string = replace_with_conform_operators(string)
+    string = string.lower().replace(" ", "").strip().rstrip(NOT_SIGN)
     string = remove_redundant_negations(string)
     return string
 
@@ -782,6 +781,11 @@ def solve(string):
         sys.stderr.write(e.error_message)
     except BaseException as e:
         traceback.print_exc()
+
+
+def console_solve():
+    while True:
+        solve(input("Formula: "))
 
 
 # No need to type I have already copied it
