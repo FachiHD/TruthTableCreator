@@ -83,96 +83,102 @@ BRACKETS = [
 ]
 
 VALUES = {}
+RESULTS = []
 VERBOSITY = False
 
 # TODO: better documenting for the gates (more consistency)
 
 
+def conv(res):
+    return "1" if res else "0"
+
+
 def TRUE():
     """Always returns true"""
-    return True
+    return True, "1"
 
 
 def FALSE():
     """Always returns false"""
-    return False
+    return False, "0"
 
 
 def NORMAL(var):
     """Returns an actual value read from VALUES this method will always be last when running the method tree"""
-    return VALUES[var]
+    res = VALUES[var]
+    return res, conv(res)
 
 
 def NOT(var):
     """Negates the result"""
     # we use the * and 1: as it may be a constant value in which case we have no parameters to pass so there is no list
-    return not var[0](*var[1:])
+    res, s = var[0](*var[1:])
+    res = not res
+    return res, f" {conv(res)}"
 
 
 def AND(var):
     """Checks if both results are true"""
-    res1 = var[0][0](*var[0][1:])
-    if not res1:
-        return False
-    res2 = var[1][0](*var[1][1:])
-    return res2
+    # as we provide intermediate results we can not optimize the and statement or any others
+    res1, s1 = var[0][0](*var[0][1:])
+    res2, s2 = var[1][0](*var[1][1:])
+    res = res1 and res2
+    return res, f" {s1} {conv(res)} {s2} "
 
 
 def NAND(var):
-    res1 = var[0][0](*var[0][1:])
-    if not res1:
-        return True
-    res2 = var[1][0](*var[1][1:])
-    return not res2
+    res1, s1 = var[0][0](*var[0][1:])
+    res2, s2 = var[1][0](*var[1][1:])
+    res = not (res1 and res2)
+    return res, f" {s1} {conv(res)} {s2} "
 
 
 def OR(var):
     """Checks if any result is true"""
-    res1 = var[0][0](*var[0][1:])
-    if res1:
-        return True
-    res2 = var[1][0](*var[1][1:])
-    return res2
+    res1, s1 = var[0][0](*var[0][1:])
+    res2, s2 = var[1][0](*var[1][1:])
+    res = res1 and res2
+    return res, f" {s1} {conv(res)} {s2} "
 
 
 def NOR(var):
-    res1 = var[0][0](*var[0][1:])
-    if res1:
-        return False
-    res2 = var[1][0](*var[1][1:])
-    return not res2
+    res1, s1 = var[0][0](*var[0][1:])
+    res2, s2 = var[1][0](*var[1][1:])
+    res = not (res1 or res2)
+    return res, f" {s1} {conv(res)} {s2} "
 
 
 def XOR(var):
     """Checks that only one result is true"""
     # TODO: add optimizations for xor, equals, unequals
-    res1 = var[0][0](*var[0][1:])
-    res2 = var[1][0](*var[1][1:])
-
-    return (res1 and not res2) or (not res1 and res2)
+    res1, s1 = var[0][0](*var[0][1:])
+    res2, s2 = var[1][0](*var[1][1:])
+    res = (res1 and not res2) or (not res1 and res2)
+    return res, f" {s1} {conv(res)} {s2} "
 
 
 def IF(var):
     """Returns true if result one is false else it returns result two"""
-    res1 = var[0][0](*var[0][1:])
-    if not res1:
-        return True
-    res2 = var[1][0](*var[1][1:])
-    return res2
+    res1, s1 = var[0][0](*var[0][1:])
+    res2, s2 = var[1][0](*var[1][1:])
+    res = not res1 or res2
+    return res, f" {s1} {conv(res)} {s2} "
 
 
 def EQUAL(var):
     """Checks if both results are the same"""
-    res1 = var[0][0](*var[0][1:])
-    res2 = var[1][0](*var[1][1:])
-    return (res1 and res2) or (not res1 and not res2)
+    res1, s1 = var[0][0](*var[0][1:])
+    res2, s2 = var[1][0](*var[1][1:])
+    res = (res1 and res2) or (not res1 and not res2)
+    return res, f" {s1} {conv(res)} {s2} "
 
 
 def UNEQUAL(var):
     """Checks if both results return the opposite same as XOR"""
-    res1 = var[0][0](*var[0][1:])
-    res2 = var[1][0](*var[1][1:])
-    return (res1 and not res2) or (not res1 and res2)
+    res1, s1 = var[0][0](*var[0][1:])
+    res2, s2 = var[1][0](*var[1][1:])
+    res = (res1 and not res2) or (not res1 and res2)
+    return res, f" {s1} {conv(res)} {s2} "
 
 
 # TODO: maybe use the bit representation number instead of lists to speed up checking
@@ -508,7 +514,7 @@ def generate_truth_values(variables):
     return truth_table
 
 
-def run_truth_table(tree, table, variables):
+def run_method_tree(tree, table, variables):
     """ Runs a method tree and fills an empty truth table with the given values
 
     :param tree: The tree to run.
@@ -521,8 +527,8 @@ def run_truth_table(tree, table, variables):
     for step in range(int(math.pow(2, variable_count))):
         for column in range(variable_count):
             VALUES[table[column][0]] = table[column][step + 1]
-        res = tree[0](*tree[1:])
-        table[variable_count][step] = res
+        res, s = tree[0](*tree[1:])
+        table[variable_count][step] = s, res
     return table
 
 
@@ -567,7 +573,7 @@ def replace_with_same_resulting_operators(tree):
     variables = list(get_variables(tree))
 
     table = generate_truth_values(variables)
-    table = run_truth_table(tree, table, variables)
+    table = run_method_tree(tree, table, variables)
     tree_result = table[-1]
     if len(variables) == 2:
         # if there are two variables the truth table will contain 3 columns
@@ -729,23 +735,23 @@ def create_truth_table(string, pre_process=True, optimize=True, verbosity=False)
     # -- optimize the method tree --
     if optimize:
         method_tree = optimize_truth_table(method_tree)
-    verbosity_print(f"Optimized Statement: {reconstruct_from_tree(method_tree)}")
+        verbosity_print(f"Optimized Statement: {reconstruct_from_tree(method_tree)}")
 
     # -- parse the statement --
     truth_table = generate_truth_values(variables)
-    completed_truth_table = run_truth_table(method_tree, truth_table, variables)
-
-    return completed_truth_table
+    completed_truth_table = run_method_tree(method_tree, truth_table, variables)
+    return completed_truth_table, method_tree
 
 
 def boolean_to_string(value):
     return "1" if value else "0"
 
 
-def get_representational_string(table):
+def get_representational_string(table, tree):
     """ Returns a string which represents a given truth table
 
     :param table: The table to represent.
+    :param header: The header to use
     :return: The generated string.
     """
     variables = []
@@ -756,36 +762,39 @@ def get_representational_string(table):
     to_print = "|"
     for i in range(variable_count):
         to_print += f"  {variables[i]}  {' ' if i >= variable_count - 1 else ''}|"
-    to_print += "   #   |"
-    total_print = to_print + "\n" + "-" * ((variable_count + 1) * 5) + "-" * (variable_count + 5) + "\n"
+    recon = reconstruct_from_tree(tree)
+    to_print += f" {recon} |  #  |"
+    total_print = f"{to_print}\n{len(to_print) * '-'}\n"
 
     for i in range(int(math.pow(2, variable_count))):
         to_print = ""
         for j in range(variable_count):
             to_print += f"   {boolean_to_string(table[j][i + 1])}  {' ' if j >= variable_count - 1 else ''}"
-        to_print += f"|   {boolean_to_string(table[variable_count][i])}   |"
+        inter = table[variable_count][i][0]
+        to_print += f"|{inter}|  {boolean_to_string(table[variable_count][i][1])}  |"
         total_print += to_print + "\n"
     return total_print
 
 
-def solve(string):
+def solve(string, optimize=True):
     """ A function which first creates a truth table and then prints it it also handles all custom exceptions raised
 
     :param string: The string to process.
+    :param optimize: If the formula should be optimized.
     :return: Nothing.
     """
     try:
-        table = create_truth_table(string, verbosity=True)
-        print(get_representational_string(table))
+        table, tree = create_truth_table(string, verbosity=True, optimize=optimize)
+        print(get_representational_string(table, tree))
     except SolverException as e:
         sys.stderr.write(e.error_message)
     except BaseException as e:
         traceback.print_exc()
 
 
-def console_solve():
+def console_solve(optimize=True):
     while True:
-        solve(input("Formula: "))
+        solve(input("Formula: "), optimize=optimize)
 
 
 if __name__ == '__main__':
